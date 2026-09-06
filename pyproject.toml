@@ -12,6 +12,8 @@ dependencies = [
     "tree-sitter-typescript",
     "sqlalchemy>=2.0",
     "psycopg[binary]>=3.2",
+    "qdrant-client>=1.15",
+    "fastembed>=0.7",
 ]
 
 [project.optional-dependencies]
@@ -25,7 +27,6 @@ include = [
     "apps*",
     "codemap*",
     "indexer*",
-    "models*",
     "retriever*",
     "storage*",
 ]

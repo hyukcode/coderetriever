@@ -1,164 +1,384 @@
-from tree_sitter import Language, Parser
+from dataclasses import dataclass
+
+from tree_sitter import (
+    Language,
+    Parser,
+)
+
 import tree_sitter_java
 
-from retriever.parser.base import SymbolParser
-from retriever.parser.models import Symbol
-from retriever.scanner import SourceFile
+from retriever.parser.base import (
+    SymbolParser,
+)
+from retriever.parser.models import (
+    Symbol,
+)
+from retriever.scanner import (
+    SourceFile,
+)
+
 
 JAVA_LANGUAGE = Language(
     tree_sitter_java.language()
 )
 
-class JavaSymbolParser(SymbolParser):
+
+@dataclass
+class ScopeFrame:
+    name: str
+    symbol_type: str
+
+
+class JavaSymbolParser(
+    SymbolParser
+):
+
+    CLASS_TYPES = {
+        "class_declaration": "class",
+        "interface_declaration": "interface",
+        "enum_declaration": "enum",
+        "record_declaration": "record",
+    }
+
     def __init__(self):
-        self.parser = Parser(JAVA_LANGUAGE)
+
+        self.parser = Parser(
+            JAVA_LANGUAGE
+        )
 
     def parse(
         self,
-        source_file=SourceFile
+        source_file: SourceFile,
     ) -> list[Symbol]:
-        source_bytes = source_file.path.read_bytes()
-        tree = self.parser.parse(source_bytes)
-        symbols: list[Symbol] = []
+
+        source_bytes = (
+            source_file.path.read_bytes()
+        )
+
+        tree = self.parser.parse(
+            source_bytes
+        )
+
+        symbols = []
+
         self._walk(
             tree.root_node,
             source_bytes,
             source_file,
             symbols,
-            None,
+            scope=[],
         )
 
         return symbols
-    
+
     def _walk(
         self,
         node,
         source_bytes,
         source_file,
         symbols,
-        parent_symbol,
+        scope,
     ):
-        current_parent = parent_symbol
-        if node.type in {
-            "class_declaration",
-            "interface_declaration",
-        }:
-            symbol = self._parse_class(
-                node,
-                source_bytes,
-                source_file,
+
+        child_scope = scope
+
+        if node.type in self.CLASS_TYPES:
+
+            symbol = (
+                self._parse_type(
+                    node,
+                    source_bytes,
+                    source_file,
+                    scope,
+                )
             )
-            symbols.append(symbol)
-            current_parent = symbol.name
-        elif node.type in {
-            "method_declaration",
-            "constructor_declaration",
-        }:
-            symbol = self._parse_function(
-                node,
-                source_bytes,
-                source_file,
-                parent_symbol,
+
+            if symbol:
+
+                symbols.append(symbol)
+
+                child_scope = (
+                    scope
+                    + [
+                        ScopeFrame(
+                            name=symbol.name,
+                            symbol_type=(
+                                symbol.symbol_type
+                            ),
+                        )
+                    ]
+                )
+
+        elif node.type == (
+            "method_declaration"
+        ):
+
+            symbol = (
+                self._parse_method(
+                    node,
+                    source_bytes,
+                    source_file,
+                    scope,
+                )
             )
-            symbols.append(symbol)
+
+            if symbol:
+                symbols.append(symbol)
+
+        elif node.type == (
+            "constructor_declaration"
+        ):
+
+            symbol = (
+                self._parse_constructor(
+                    node,
+                    source_bytes,
+                    source_file,
+                    scope,
+                )
+            )
+
+            if symbol:
+                symbols.append(symbol)
 
         for child in node.children:
+
             self._walk(
                 child,
                 source_bytes,
                 source_file,
                 symbols,
-                current_parent
+                child_scope,
             )
-    
-    def _parse_class(
+
+    def _parse_type(
         self,
         node,
         source_bytes,
         source_file,
+        scope,
     ):
-        name_node = node.child_by_field_name("name")
+
+        name_node = (
+            node.child_by_field_name(
+                "name"
+            )
+        )
+
+        if name_node is None:
+            return None
+
         name = self._text(
             name_node,
             source_bytes,
         )
-        symbol_type = (
-            "interface"
-            if node.type == "interface_declaration"
-            else "class"
+
+        qualified_name = (
+            self._qualified_name(
+                scope,
+                name,
+            )
         )
 
         return Symbol(
             name=name,
-            qualified_name=name,
-            symbol_type=symbol_type,
-            path=source_file.relative_path,
-            language="java",
-            start_line=node.start_point.row+1,
-            end_line=node.end_point.row+1,
-            signature=self._first_line(
-                node,
-                source_bytes,
+
+            qualified_name=(
+                qualified_name
             ),
+
+            symbol_type=(
+                self.CLASS_TYPES[
+                    node.type
+                ]
+            ),
+
+            path=(
+                source_file.relative_path
+            ),
+
+            language="java",
+
+            start_line=(
+                node.start_point.row + 1
+            ),
+
+            end_line=(
+                node.end_point.row + 1
+            ),
+
+            signature=(
+                self._signature(
+                    node,
+                    source_bytes,
+                )
+            ),
+
             code=self._text(
                 node,
                 source_bytes,
             ),
         )
-    
-    def _parse_function(
+
+    def _parse_method(
         self,
         node,
         source_bytes,
         source_file,
-        parent_symbol,
-    ) -> Symbol:
-        name_node = node.child_by_field_name("name")
+        scope,
+    ):
+
+        name_node = (
+            node.child_by_field_name(
+                "name"
+            )
+        )
+
+        if name_node is None:
+            return None
+
         name = self._text(
             name_node,
             source_bytes,
         )
-        qualified_name = (
-            f"{parent_symbol}.{name}"
-            if parent_symbol
-            else name
-        )
+
         return Symbol(
             name=name,
-            qualified_name=qualified_name,
-            symbol_type=(
-                "constructor"
-                if node.type
-                == "constructor_declaration"
-                else "method"
+
+            qualified_name=(
+                self._qualified_name(
+                    scope,
+                    name,
+                )
             ),
-            path=source_file.relative_path,
+
+            symbol_type="method",
+
+            path=(
+                source_file.relative_path
+            ),
+
             language="java",
-            start_line=node.start_point.row+1,
-            end_line=node.end_point.row+1,
-            signature=self._get_signature(
-                node,
-                source_bytes,
+
+            start_line=(
+                node.start_point.row + 1
             ),
+
+            end_line=(
+                node.end_point.row + 1
+            ),
+
+            signature=(
+                self._signature(
+                    node,
+                    source_bytes,
+                )
+            ),
+
             code=self._text(
                 node,
                 source_bytes,
             ),
         )
-    
-    def _get_signature(
+
+    def _parse_method(
         self,
         node,
         source_bytes,
-    ) -> str:
-        body=node.child_by_field_name("body")
-        if body is None:
-            return self._first_line(
+        source_file,
+        scope,
+    ):
+
+        name_node = (
+            node.child_by_field_name(
+                "name"
+            )
+        )
+
+        if name_node is None:
+            return None
+
+        name = self._text(
+            name_node,
+            source_bytes,
+        )
+
+        return Symbol(
+            name=name,
+
+            qualified_name=(
+                self._qualified_name(
+                    scope,
+                    name,
+                )
+            ),
+
+            symbol_type="method",
+
+            path=(
+                source_file.relative_path
+            ),
+
+            language="java",
+
+            start_line=(
+                node.start_point.row + 1
+            ),
+
+            end_line=(
+                node.end_point.row + 1
+            ),
+
+            signature=(
+                self._signature(
+                    node,
+                    source_bytes,
+                )
+            ),
+
+            code=self._text(
                 node,
                 source_bytes,
+            ),
+        )
+
+    def _qualified_name(
+        self,
+        scope,
+        name,
+    ):
+
+        names = [
+            frame.name
+            for frame in scope
+        ]
+
+        names.append(name)
+
+        return ".".join(names)
+
+    def _signature(
+        self,
+        node,
+        source_bytes,
+    ):
+
+        body = (
+            node.child_by_field_name(
+                "body"
             )
+        )
+
+        if body is None:
+
+            return self._text(
+                node,
+                source_bytes,
+            ).splitlines()[0]
+
         return source_bytes[
-            node.start_byte:node.end_byte
+            node.start_byte:
+            body.start_byte
         ].decode(
             "utf-8",
             errors="replace",
@@ -169,18 +389,14 @@ class JavaSymbolParser(SymbolParser):
         node,
         source_bytes,
     ):
+
+        if node is None:
+            return ""
+
         return source_bytes[
-            node.start_byte:node.end_byte
+            node.start_byte:
+            node.end_byte
         ].decode(
             "utf-8",
             errors="replace",
         )
-    
-    def _first_line(self, node, source_bytes):
-        return self._text(
-            node,
-            source_bytes
-        ).splitlines()[0]
-
-
-

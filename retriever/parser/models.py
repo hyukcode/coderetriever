@@ -12,3 +12,7 @@ class Symbol:
     signature: str
     code: str
 
+@dataclass
+class ScopeFrame:
+    name: str
+    symbol_type: str

@@ -70,6 +70,10 @@ class JavaScriptSymbolParser(SymbolParser):
             )
             if symbol:
                 symbols.append(symbol)
+
+                child_scope = (
+                    scope + [symbol.name]
+                )
         elif node.type == "method_declaration":
             symbol = self._parse_variable_function(
                 node,
