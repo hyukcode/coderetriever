@@ -32,7 +32,12 @@ class RepoIndexer:
     def index(
         self,
         repo_path: str,
+        force: bool = False,
     ) -> None:
+
+        print(
+            f"[index] force={force}"
+        )
 
         repo_path = str(
             Path(repo_path).resolve()
@@ -70,6 +75,7 @@ class RepoIndexer:
                 changed = self._index_file(
                     repo=repo,
                     source_file=source_file,
+                    force=force,
                 )
 
                 if changed:
@@ -119,6 +125,7 @@ class RepoIndexer:
         self,
         repo: RepositoryModel,
         source_file: SourceFile,
+        force: bool = False,
     ) -> bool:
 
         content_hash = self._file_hash(
@@ -133,7 +140,8 @@ class RepoIndexer:
         )
 
         if (
-            file_model is not None
+            not force 
+            and file_model is not None
             and file_model.content_hash
             == content_hash
         ):
