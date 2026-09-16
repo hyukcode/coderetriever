@@ -3,16 +3,16 @@ from sqlalchemy import or_, select
 from retriever.embedding.service import (
     EmbeddingService,
 )
-from retriever.retrieval.models import (
+from retriever.models import (
     SearchResult,
 )
-from retriever.retrieval.symbol_search import (
+from retriever.symbol_search import (
     SymbolSearch,
 )
-from retriever.retrieval.vector_search import (
+from retriever.vector_search import (
     VectorSearch,
 )
-from retriever.storage.models import (
+from storage.models import (
     FileModel,
     RepositoryModel,
     SymbolModel,

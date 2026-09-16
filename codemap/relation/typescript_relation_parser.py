@@ -1,7 +1,7 @@
 from tree_sitter import Language
 import tree_sitter_typescript
 
-from retriever.relation.javascript_relation_parser import (
+from codemap.relation.javascript_relation_parser import (
     JavaScriptRelationParser,
 )
 

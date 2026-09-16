@@ -1,7 +1,7 @@
 from tree_sitter import Language, Parser
 import tree_sitter_python
 
-from retriever.relation.models import Relation
+from codemap.relation.models import Relation
 from retriever.scanner import SourceFile
 
 

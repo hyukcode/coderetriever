@@ -1,6 +1,6 @@
 from sqlalchemy import or_, select
 
-from retriever.storage.models import (
+from storage.models import (
     CodeEdgeModel,
     FileModel,
     SymbolModel,

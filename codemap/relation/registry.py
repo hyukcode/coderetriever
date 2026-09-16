@@ -1,13 +1,13 @@
-from retriever.relation.java_relation_parser import (
+from codemap.relation.java_relation_parser import (
     JavaRelationParser,
 )
-from retriever.relation.javascript_relation_parser import (
+from codemap.relation.javascript_relation_parser import (
     JavaScriptRelationParser,
 )
-from retriever.relation.python_relation_parser import (
+from codemap.relation.python_relation_parser import (
     PythonRelationParser,
 )
-from retriever.relation.typescript_relation_parser import (
+from codemap.relation.typescript_relation_parser import (
     TSXRelationParser,
     TypeScriptRelationParser,
 )

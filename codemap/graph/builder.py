@@ -1,6 +1,6 @@
 from sqlalchemy import select
 
-from retriever.storage.models import (
+from storage.models import (
     CodeEdgeModel,
     SymbolModel,
 )

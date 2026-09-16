@@ -1,9 +1,9 @@
 import argparse
 
-from retriever.graph.code_map import (
+from codemap.graph.code_map import (
     CodeMapService,
 )
-from retriever.storage.database import (
+from storage.database import (
     SessionLocal,
 )
 
